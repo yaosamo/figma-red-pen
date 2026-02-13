@@ -87,8 +87,8 @@ function countComponents(node) {
   };
 }
 
-// Create annotation on frame for failed checks
-async function addAnnotation(frame, message) {
+// Create annotation on frame for validation results
+async function addAnnotation(frame, message, isSuccess = false) {
   try {
     // Create a text node as annotation
     const annotation = figma.createText();
@@ -96,7 +96,8 @@ async function addAnnotation(frame, message) {
     // Load font first
     await figma.loadFontAsync({ family: "Inter", style: "Regular" });
     
-    annotation.name = '⚠️ Red Pen: Issues Found';
+    const annotationName = isSuccess ? '✅ Red Pen: Validated' : '⚠️ Red Pen: Issues Found';
+    annotation.name = annotationName;
     annotation.characters = message;
     annotation.fontSize = 12;
     annotation.fills = [{ type: 'SOLID', color: { r: 1, g: 1, b: 1 } }];
@@ -105,16 +106,23 @@ async function addAnnotation(frame, message) {
     annotation.textAlignHorizontal = 'LEFT';
     annotation.textAlignVertical = 'TOP';
     
-    // Add background
+    // Add background with appropriate color
     const background = figma.createRectangle();
     background.name = 'annotation-bg';
     background.resize(320, annotation.height + 24);
-    background.fills = [{ type: 'SOLID', color: { r: 0.95, g: 0.26, b: 0.13 } }];
+    
+    if (isSuccess) {
+      // Green background for success
+      background.fills = [{ type: 'SOLID', color: { r: 0.06, g: 0.66, b: 0.35 } }];
+    } else {
+      // Red background for issues
+      background.fills = [{ type: 'SOLID', color: { r: 0.95, g: 0.26, b: 0.13 } }];
+    }
     background.cornerRadius = 8;
     
     // Create a frame to group them
     const annotationGroup = figma.createFrame();
-    annotationGroup.name = '⚠️ Red Pen: Issues Found';
+    annotationGroup.name = annotationName;
     annotationGroup.resize(320, annotation.height + 24);
     annotationGroup.fills = [];
     
@@ -145,7 +153,7 @@ async function addAnnotation(frame, message) {
 function removeAnnotations(frame) {
   if (frame.parent && 'findAll' in frame.parent) {
     const annotations = frame.parent.findAll(node => 
-      node.name.startsWith('⚠️ Red Pen:')
+      node.name.startsWith('⚠️ Red Pen:') || node.name.startsWith('✅ Red Pen:')
     );
     
     annotations.forEach(annotation => {
@@ -175,13 +183,14 @@ async function validateFrame(frame, addAnnotations = false) {
     componentStats: componentStats
   };
   
-  // Add annotation if requested and validation failed
+  // Add annotation if requested
   if (addAnnotations) {
     removeAnnotations(frame); // Remove old annotations first
     
     const hasColorIssues = !results.allColorsBound;
     
     if (hasColorIssues) {
+      // Add failure annotation
       const issues = [];
       
       if (!results.allColorsBound) {
@@ -189,7 +198,12 @@ async function validateFrame(frame, addAnnotations = false) {
       }
       
       const message = `${frame.name}\n\n${issues.join('\n')}`;
-      await addAnnotation(frame, message);
+      await addAnnotation(frame, message, false);
+    } else {
+      // Add success annotation
+      const components = componentStats.totalInstances;
+      const message = `${frame.name}\n\n✅ All colors properly bound to design tokens\n📊 ${components} component instances used`;
+      await addAnnotation(frame, message, true);
     }
   }
   
