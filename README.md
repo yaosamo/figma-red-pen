@@ -41,6 +41,7 @@ Will be available on Figma Community once published.
 - **Validates**: Colors are bound to variables or styles (not hardcoded)
 - **Purpose**: Ensures consistent use of design tokens
 - **Flags**: Hardcoded hex values that should use design system colors
+- **Exceptions**: Pure white (#ffffff) and pure black (#000000) are allowed as universal colors
 - **Shows**: Specific layers and colors that need fixing
 
 ### Component Usage Metrics 📊

@@ -12,6 +12,11 @@ function rgbToHex(r, g, b) {
   return `#${toHex(r)}${toHex(g)}${toHex(b)}`.toLowerCase();
 }
 
+// Check if a color is a universal exception (pure white or black)
+function isUniversalColor(hex) {
+  return hex === '#ffffff' || hex === '#000000';
+}
+
 // Check if a node is using bound styles/variables (not hardcoded)
 function hasUnboundColors(node) {
   const unboundColors = [];
@@ -27,7 +32,10 @@ function hasUnboundColors(node) {
           
           if (!hasBoundStyle && !hasBoundVariable) {
             const hex = rgbToHex(fill.color.r, fill.color.g, fill.color.b);
-            unboundColors.push(`${n.name}: ${hex}`);
+            // Skip universal colors (pure white and black)
+            if (!isUniversalColor(hex)) {
+              unboundColors.push(`${n.name}: ${hex}`);
+            }
           }
         }
       });
@@ -42,7 +50,10 @@ function hasUnboundColors(node) {
           
           if (!hasBoundStyle && !hasBoundVariable) {
             const hex = rgbToHex(stroke.color.r, stroke.color.g, stroke.color.b);
-            unboundColors.push(`${n.name}: ${hex} (stroke)`);
+            // Skip universal colors (pure white and black)
+            if (!isUniversalColor(hex)) {
+              unboundColors.push(`${n.name}: ${hex} (stroke)`);
+            }
           }
         }
       });
