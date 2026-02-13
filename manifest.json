@@ -1,6 +1,6 @@
 {
-  "name": "Zarif's Red Pen",
-  "id": "zarifs-red-pen",
+  "name": "Red Pen",
+  "id": "red-pen",
   "api": "1.0.0",
   "main": "code.js",
   "ui": "ui.html",

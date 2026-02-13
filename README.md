@@ -1,4 +1,4 @@
-# Figma Red Pen 🖊️
+# Red Pen 🖊️
 
 A Figma plugin that validates your designs against design system requirements. Catch inconsistencies before they ship!
 
