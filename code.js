@@ -1,66 +1,7 @@
-// Figma Plugin: Frame Validator
-// Checks selected frames for color token compliance and layer naming conventions
+// Figma Plugin: Red Pen
+// Validates design system compliance and provides component usage metrics
 
 figma.showUI(__html__, { width: 320, height: 480 });
-
-// Get all color styles/variables from the document (including connected design systems)
-function getColorTokens() {
-  const tokens = new Set();
-  
-  try {
-    // Get local color styles
-    const localStyles = figma.getLocalPaintStyles();
-    localStyles.forEach(style => {
-      style.paints.forEach(paint => {
-        if (paint.type === 'SOLID') {
-          const rgb = paint.color;
-          const hex = rgbToHex(rgb.r, rgb.g, rgb.b);
-          tokens.add(hex);
-        }
-      });
-    });
-  } catch (e) {
-    console.error('Error loading paint styles:', e);
-  }
-  
-  try {
-    // Get all available color variables (includes remote/library variables)
-    if (figma.variables) {
-      const allVariables = figma.variables.getLocalVariables('COLOR');
-      allVariables.forEach(variable => {
-        Object.values(variable.valuesByMode).forEach(value => {
-          if (typeof value === 'object' && 'r' in value) {
-            const hex = rgbToHex(value.r, value.g, value.b);
-            tokens.add(hex);
-          }
-        });
-      });
-      
-      // Get remote variables from connected libraries
-      const collections = figma.variables.getLocalVariableCollections();
-      collections.forEach(collection => {
-        // Check if collection has remote variables
-        if (collection.remote) {
-          const collectionVariables = figma.variables.getVariablesInCollection(collection.id);
-          collectionVariables.forEach(variable => {
-            if (variable.resolvedType === 'COLOR') {
-              Object.values(variable.valuesByMode).forEach(value => {
-                if (typeof value === 'object' && 'r' in value) {
-                  const hex = rgbToHex(value.r, value.g, value.b);
-                  tokens.add(hex);
-                }
-              });
-            }
-          });
-        }
-      });
-    }
-  } catch (e) {
-    console.error('Error loading variables:', e);
-  }
-  
-  return tokens;
-}
 
 // Convert RGB to Hex
 function rgbToHex(r, g, b) {
@@ -71,41 +12,7 @@ function rgbToHex(r, g, b) {
   return `#${toHex(r)}${toHex(g)}${toHex(b)}`.toLowerCase();
 }
 
-// Check if layer name follows convention (kebab-case)
-function isValidLayerName(name) {
-  // Check for kebab-case: lowercase letters, numbers, and hyphens
-  const kebabCase = /^[a-z0-9]+(-[a-z0-9]+)*$/;
-  return kebabCase.test(name);
-}
-
-// Extract all colors from a node and its children
-function extractColors(node, colors = new Set()) {
-  if ('fills' in node && Array.isArray(node.fills)) {
-    node.fills.forEach(fill => {
-      if (fill.type === 'SOLID' && fill.visible !== false) {
-        const hex = rgbToHex(fill.color.r, fill.color.g, fill.color.b);
-        colors.add(hex);
-      }
-    });
-  }
-  
-  if ('strokes' in node && Array.isArray(node.strokes)) {
-    node.strokes.forEach(stroke => {
-      if (stroke.type === 'SOLID' && stroke.visible !== false) {
-        const hex = rgbToHex(stroke.color.r, stroke.color.g, stroke.color.b);
-        colors.add(hex);
-      }
-    });
-  }
-  
-  if ('children' in node) {
-    node.children.forEach(child => extractColors(child, colors));
-  }
-  
-  return colors;
-}
-
-// Check if a node is using bound styles/variables (not just matching colors)
+// Check if a node is using bound styles/variables (not hardcoded)
 function hasUnboundColors(node) {
   const unboundColors = [];
   
@@ -150,15 +57,34 @@ function hasUnboundColors(node) {
   return unboundColors;
 }
 
-// Collect all layer names from a node and its children
-function collectLayerNames(node, names = []) {
-  names.push(node.name);
+// Count component instances used in a frame
+function countComponents(node) {
+  const componentInstances = [];
   
-  if ('children' in node) {
-    node.children.forEach(child => collectLayerNames(child, names));
+  function traverseNode(n) {
+    if (n.type === 'INSTANCE') {
+      const componentName = n.mainComponent ? n.mainComponent.name : 'Unknown Component';
+      componentInstances.push(componentName);
+    }
+    
+    if ('children' in n) {
+      n.children.forEach(child => traverseNode(child));
+    }
   }
   
-  return names;
+  traverseNode(node);
+  
+  // Count occurrences of each component
+  const componentCounts = {};
+  componentInstances.forEach(name => {
+    componentCounts[name] = (componentCounts[name] || 0) + 1;
+  });
+  
+  return {
+    totalInstances: componentInstances.length,
+    uniqueComponents: Object.keys(componentCounts).length,
+    componentBreakdown: componentCounts
+  };
 }
 
 // Create annotation on frame for failed checks
@@ -170,7 +96,7 @@ async function addAnnotation(frame, message) {
     // Load font first
     await figma.loadFontAsync({ family: "Inter", style: "Regular" });
     
-    annotation.name = '⚠️ Validation: Issues Found';
+    annotation.name = '⚠️ Red Pen: Issues Found';
     annotation.characters = message;
     annotation.fontSize = 12;
     annotation.fills = [{ type: 'SOLID', color: { r: 1, g: 1, b: 1 } }];
@@ -188,7 +114,7 @@ async function addAnnotation(frame, message) {
     
     // Create a frame to group them
     const annotationGroup = figma.createFrame();
-    annotationGroup.name = '⚠️ Validation: Issues Found';
+    annotationGroup.name = '⚠️ Red Pen: Issues Found';
     annotationGroup.resize(320, annotation.height + 24);
     annotationGroup.fills = [];
     
@@ -219,7 +145,7 @@ async function addAnnotation(frame, message) {
 function removeAnnotations(frame) {
   if (frame.parent && 'findAll' in frame.parent) {
     const annotations = frame.parent.findAll(node => 
-      node.name.startsWith('⚠️ Validation:')
+      node.name.startsWith('⚠️ Red Pen:')
     );
     
     annotations.forEach(annotation => {
@@ -239,56 +165,27 @@ function removeAnnotations(frame) {
 }
 
 async function validateFrame(frame, addAnnotations = false) {
-  const colorTokens = getColorTokens();
-  const usedColors = extractColors(frame);
-  const layerNames = collectLayerNames(frame);
   const unboundColors = hasUnboundColors(frame);
-  
-  // Check colors match tokens
-  const unmatchedColors = [];
-  usedColors.forEach(color => {
-    if (!colorTokens.has(color)) {
-      unmatchedColors.push(color);
-    }
-  });
-  
-  // Check layer names
-  const invalidNames = [];
-  layerNames.forEach(name => {
-    if (!isValidLayerName(name)) {
-      invalidNames.push(name);
-    }
-  });
+  const componentStats = countComponents(frame);
   
   const results = {
     frameName: frame.name,
-    allColorsInTokens: unmatchedColors.length === 0,
-    unmatchedColors: unmatchedColors,
     allColorsBound: unboundColors.length === 0,
     unboundColors: unboundColors,
-    allLayerNamesValid: invalidNames.length === 0,
-    invalidNames: invalidNames,
-    totalColors: usedColors.size,
-    totalLayers: layerNames.length
+    componentStats: componentStats
   };
   
   // Add annotation if requested and validation failed
   if (addAnnotations) {
     removeAnnotations(frame); // Remove old annotations first
     
-    const hasIssues = !results.allColorsInTokens || !results.allColorsBound || !results.allLayerNamesValid;
+    const hasColorIssues = !results.allColorsBound;
     
-    if (hasIssues) {
+    if (hasColorIssues) {
       const issues = [];
       
-      if (!results.allColorsInTokens) {
-        issues.push(`❌ ${unmatchedColors.length} color(s) not in design system`);
-      }
       if (!results.allColorsBound) {
         issues.push(`❌ ${unboundColors.length} hardcoded color(s)`);
-      }
-      if (!results.allLayerNamesValid) {
-        issues.push(`❌ ${invalidNames.length} invalid layer name(s)`);
       }
       
       const message = `${frame.name}\n\n${issues.join('\n')}`;

@@ -79,6 +79,17 @@
       border-bottom: none;
     }
     
+    .metric-item {
+      display: flex;
+      align-items: flex-start;
+      padding: 8px 0;
+      border-bottom: 1px solid #E5E5E5;
+    }
+    
+    .metric-item:last-child {
+      border-bottom: none;
+    }
+    
     .check-icon {
       width: 18px;
       height: 18px;
@@ -99,6 +110,21 @@
     
     .check-icon.fail {
       background: #F24822;
+      color: white;
+    }
+    
+    .metric-icon {
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-right: 10px;
+      flex-shrink: 0;
+      font-size: 10px;
+      font-weight: 700;
+      background: #6B73FF;
       color: white;
     }
     
@@ -131,6 +157,24 @@
       font-family: 'Monaco', 'Courier New', monospace;
     }
     
+    .component-list {
+      margin-top: 6px;
+      padding-left: 8px;
+    }
+    
+    .component-item {
+      font-size: 10px;
+      color: #6B73FF;
+      padding: 2px 0;
+      display: flex;
+      justify-content: space-between;
+    }
+    
+    .component-count {
+      color: #999;
+      font-weight: 500;
+    }
+    
     #results {
       margin-top: 16px;
     }
@@ -155,7 +199,7 @@
   <button class="button" id="validate">Validate Selection</button>
   
   <div style="font-size: 10px; color: #999; margin-bottom: 16px; padding: 8px; background: #F5F5F5; border-radius: 4px;">
-    💡 Failed frames will get an annotation on the canvas
+    💡 Validates color binding and provides component usage metrics
   </div>
   
   <div id="results"></div>
@@ -189,43 +233,21 @@
       let html = '';
       
       results.forEach(result => {
-        const colorPass = result.allColorsInTokens;
         const boundPass = result.allColorsBound;
-        const namePass = result.allLayerNamesValid;
+        const componentStats = result.componentStats;
         
         html += `
           <div class="frame-result">
             <div class="frame-name">📐 ${escapeHtml(result.frameName)}</div>
             
             <div class="check-item">
-              <div class="check-icon ${colorPass ? 'pass' : 'fail'}">
-                ${colorPass ? '✓' : '✕'}
-              </div>
-              <div class="check-content">
-                <div class="check-label">Colors exist in design system</div>
-                <div class="check-details stats">
-                  ${result.totalColors} colors used
-                </div>
-                ${!colorPass ? `
-                  <div class="issue-list">
-                    ${result.unmatchedColors.slice(0, 5).map(color => 
-                      `<div class="issue-item">• ${color}</div>`
-                    ).join('')}
-                    ${result.unmatchedColors.length > 5 ? 
-                      `<div class="issue-item">• ...and ${result.unmatchedColors.length - 5} more</div>` : ''}
-                  </div>
-                ` : ''}
-              </div>
-            </div>
-            
-            <div class="check-item">
               <div class="check-icon ${boundPass ? 'pass' : 'fail'}">
                 ${boundPass ? '✓' : '✕'}
               </div>
               <div class="check-content">
-                <div class="check-label">Colors bound to tokens (not hardcoded)</div>
+                <div class="check-label">Colors bound to variables/styles</div>
                 <div class="check-details stats">
-                  Checking for proper variable/style binding
+                  Checking for hardcoded colors vs design tokens
                 </div>
                 ${!boundPass ? `
                   <div class="issue-list">
@@ -239,24 +261,29 @@
               </div>
             </div>
             
-            <div class="check-item">
-              <div class="check-icon ${namePass ? 'pass' : 'fail'}">
-                ${namePass ? '✓' : '✕'}
-              </div>
+            <div class="metric-item">
+              <div class="metric-icon">📊</div>
               <div class="check-content">
-                <div class="check-label">Layer names valid (kebab-case)</div>
+                <div class="check-label">Component Usage</div>
                 <div class="check-details stats">
-                  ${result.totalLayers} layers checked
+                  ${componentStats.totalInstances} instances • ${componentStats.uniqueComponents} unique components
                 </div>
-                ${!namePass ? `
-                  <div class="issue-list">
-                    ${result.invalidNames.slice(0, 5).map(name => 
-                      `<div class="issue-item">• ${escapeHtml(name)}</div>`
+                ${componentStats.totalInstances > 0 ? `
+                  <div class="component-list">
+                    ${Object.entries(componentStats.componentBreakdown).slice(0, 8).map(([name, count]) => 
+                      `<div class="component-item">
+                        <span>${escapeHtml(name)}</span>
+                        <span class="component-count">${count}×</span>
+                      </div>`
                     ).join('')}
-                    ${result.invalidNames.length > 5 ? 
-                      `<div class="issue-item">• ...and ${result.invalidNames.length - 5} more</div>` : ''}
+                    ${Object.keys(componentStats.componentBreakdown).length > 8 ? 
+                      `<div class="component-item"><span style="color: #999;">...and ${Object.keys(componentStats.componentBreakdown).length - 8} more</span></div>` : ''}
                   </div>
-                ` : ''}
+                ` : `
+                  <div class="check-details" style="color: #999; margin-top: 6px;">
+                    No component instances found
+                  </div>
+                `}
               </div>
             </div>
           </div>

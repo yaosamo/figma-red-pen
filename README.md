@@ -1,14 +1,13 @@
 # Red Pen 🖊️
 
-A Figma plugin that validates your designs against design system requirements. Catch inconsistencies before they ship!
+A Figma plugin that validates design system compliance and provides component usage insights.
 
 ## ✨ Features
 
-- **🎨 Color Token Validation**: Checks if all colors exist in your connected design system libraries
-- **🔗 Token Binding**: Validates colors are properly bound to tokens (not hardcoded hex values)  
-- **📝 Naming Convention**: Ensures layer names follow kebab-case convention (`button-primary`, `icon-home`)
-- **📍 Visual Annotations**: Failed frames get red annotations showing which requirements failed
-- **📚 Design System Integration**: Works with both local and remote design system libraries
+- **🔗 Color Token Validation**: Ensures colors are properly bound to variables/styles (not hardcoded)
+- **📊 Component Metrics**: Shows component usage statistics and breakdown
+- **📍 Visual Annotations**: Failed frames get red annotations on the canvas
+- **🎯 Design System Focus**: Helps maintain consistency in design systems
 
 ## 🚀 Installation
 
@@ -33,43 +32,48 @@ Will be available on Figma Community once published.
 1. **Select frames** you want to validate in your Figma file
 2. **Run the plugin**: `Plugins` → `Development` → `Red Pen`
 3. **Click "Validate Selection"**
-4. **Review the checklist** results in the plugin panel
-5. **Check your canvas** - failed frames automatically get red annotations showing issues
+4. **Review the results** in the plugin panel
+5. **Check your canvas** - frames with issues get red annotations
 
-## 🔍 What It Validates
+## 🔍 What It Validates & Reports
 
-### Color Token Compliance
-- ✅ Colors exist in connected design system libraries
-- ✅ Colors are bound to styles/variables (not hardcoded)
-- ✅ Supports both local and remote design tokens
-- 📝 Lists any non-compliant colors with suggestions
+### Color Token Compliance ✅❌
+- **Validates**: Colors are bound to variables or styles (not hardcoded)
+- **Purpose**: Ensures consistent use of design tokens
+- **Flags**: Hardcoded hex values that should use design system colors
+- **Shows**: Specific layers and colors that need fixing
 
-### Layer Naming
-- ✅ All layer names follow kebab-case format
-- ✅ **Valid**: `button-primary`, `icon-search`, `card-header`  
-- ❌ **Invalid**: `Button Primary`, `icon_search`, `Card Header`
+### Component Usage Metrics 📊
+- **Counts**: Total component instances in the frame
+- **Lists**: Breakdown of each component and usage frequency  
+- **Tracks**: Unique components vs total instances
+- **Purpose**: Understanding component adoption and consistency
+
+## 🎨 Visual Feedback
+
+**Annotations**: Frames with color issues automatically get red annotations showing:
+- Frame name
+- Number of hardcoded colors found
+- Visual indicator on the canvas
 
 ## ⚙️ Customization
 
-### Change Naming Convention
+### Modify Color Validation
 
-Edit the `isValidLayerName` function in `code.js`:
+Edit the `hasUnboundColors` function in `code.js` to adjust what counts as "bound":
 
 ```javascript
-function isValidLayerName(name) {
-  // Example: PascalCase
-  const pascalCase = /^[A-Z][a-zA-Z0-9]*$/;
-  return pascalCase.test(name);
-  
-  // Example: snake_case  
-  const snakeCase = /^[a-z0-9]+(_[a-z0-9]+)*$/;
-  return snakeCase.test(name);
-}
+// Current logic checks for:
+const hasBoundStyle = 'fillStyleId' in node && node.fillStyleId !== '';
+const hasBoundVariable = fill.boundVariables && 'color' in fill.boundVariables;
 ```
 
-### Add Custom Validations
+### Add Custom Metrics
 
-Add new validation functions to `validateFrame()` in `code.js` and update the UI accordingly.
+Extend the `countComponents` function to track additional metrics like:
+- Text styles usage
+- Spacing consistency
+- Icon usage patterns
 
 ## 🏗️ Development
 
@@ -102,12 +106,25 @@ npm run lint:fix
 ```
 ├── code.js          # Main plugin logic (JavaScript)
 ├── code.ts          # TypeScript source (optional)
-├── ui.html          # Plugin interface with checklist UI
+├── ui.html          # Plugin interface with results display
 ├── manifest.json    # Plugin configuration
 ├── icon.png         # Plugin icon
 ├── package.json     # Dependencies and scripts
 └── README.md        # This file
 ```
+
+## 🎯 Design Philosophy
+
+**Focus on what matters**: 
+- Validates actual design system compliance (token binding)
+- Provides actionable component insights
+- Doesn't flag things that aren't necessarily problems
+- Gives metrics for understanding design consistency
+
+**Non-intrusive**:
+- Only marks actual errors with annotations
+- Shows metrics as information, not failures
+- Helps designers understand their design patterns
 
 ## 🤝 Contributing
 
@@ -131,7 +148,8 @@ Created by **Yaosamo** (Yaroslav Samoylov)
 
 - [Figma Plugin API Documentation](https://www.figma.com/plugin-docs/)
 - [Design Systems Best Practices](https://www.designsystems.com/)
+- [Design Tokens Community Group](https://design-tokens.github.io/community-group/)
 
 ---
 
-*Keep your designs consistent and your design system happy!* 🎨✨
+*Keep your design system consistent and your tokens properly bound!* 🎨✨
