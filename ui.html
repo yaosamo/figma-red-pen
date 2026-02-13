@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      font-size: 12px;
+      padding: 16px;
+      background: #ffffff;
+      color: #333;
+    }
+    
+    h2 {
+      font-size: 14px;
+      font-weight: 600;
+      margin-bottom: 12px;
+      color: #000;
+    }
+    
+    .button {
+      width: 100%;
+      padding: 10px;
+      background: #18A0FB;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      margin-bottom: 16px;
+    }
+    
+    .button:hover {
+      background: #0d8ce8;
+    }
+    
+    .button:active {
+      background: #0880d9;
+    }
+    
+    .error {
+      padding: 12px;
+      background: #FFF3CD;
+      border: 1px solid #FFE69C;
+      border-radius: 6px;
+      color: #856404;
+      margin-bottom: 12px;
+      font-size: 11px;
+    }
+    
+    .frame-result {
+      margin-bottom: 20px;
+      padding: 12px;
+      background: #F5F5F5;
+      border-radius: 6px;
+    }
+    
+    .frame-name {
+      font-weight: 600;
+      font-size: 13px;
+      margin-bottom: 12px;
+      color: #000;
+    }
+    
+    .check-item {
+      display: flex;
+      align-items: flex-start;
+      padding: 8px 0;
+      border-bottom: 1px solid #E5E5E5;
+    }
+    
+    .check-item:last-child {
+      border-bottom: none;
+    }
+    
+    .check-icon {
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-right: 10px;
+      flex-shrink: 0;
+      font-size: 10px;
+      font-weight: 700;
+    }
+    
+    .check-icon.pass {
+      background: #0FA958;
+      color: white;
+    }
+    
+    .check-icon.fail {
+      background: #F24822;
+      color: white;
+    }
+    
+    .check-content {
+      flex: 1;
+    }
+    
+    .check-label {
+      font-size: 12px;
+      font-weight: 500;
+      color: #333;
+      margin-bottom: 4px;
+    }
+    
+    .check-details {
+      font-size: 11px;
+      color: #666;
+      margin-top: 4px;
+    }
+    
+    .issue-list {
+      margin-top: 6px;
+      padding-left: 8px;
+    }
+    
+    .issue-item {
+      font-size: 10px;
+      color: #F24822;
+      padding: 2px 0;
+      font-family: 'Monaco', 'Courier New', monospace;
+    }
+    
+    #results {
+      margin-top: 16px;
+    }
+    
+    .empty-state {
+      text-align: center;
+      padding: 40px 20px;
+      color: #999;
+      font-size: 11px;
+    }
+    
+    .stats {
+      font-size: 10px;
+      color: #999;
+      margin-top: 4px;
+    }
+  </style>
+</head>
+<body>
+  <h2>Zarif's Red Pen</h2>
+  
+  <button class="button" id="validate">Validate Selection</button>
+  
+  <div style="font-size: 10px; color: #999; margin-bottom: 16px; padding: 8px; background: #F5F5F5; border-radius: 4px;">
+    💡 Failed frames will get an annotation on the canvas
+  </div>
+  
+  <div id="results"></div>
+  
+  <script>
+    const validateBtn = document.getElementById('validate');
+    const resultsDiv = document.getElementById('results');
+    
+    validateBtn.onclick = () => {
+      parent.postMessage({ pluginMessage: { type: 'validate', addAnnotations: true } }, '*');
+    };
+    
+    window.onmessage = (event) => {
+      const msg = event.data.pluginMessage;
+      
+      if (msg.type === 'error') {
+        resultsDiv.innerHTML = `<div class="error">${msg.message}</div>`;
+      }
+      
+      if (msg.type === 'results') {
+        displayResults(msg.data);
+      }
+    };
+    
+    function displayResults(results) {
+      if (results.length === 0) {
+        resultsDiv.innerHTML = '<div class="empty-state">No frames to validate</div>';
+        return;
+      }
+      
+      let html = '';
+      
+      results.forEach(result => {
+        const colorPass = result.allColorsInTokens;
+        const boundPass = result.allColorsBound;
+        const namePass = result.allLayerNamesValid;
+        
+        html += `
+          <div class="frame-result">
+            <div class="frame-name">📐 ${escapeHtml(result.frameName)}</div>
+            
+            <div class="check-item">
+              <div class="check-icon ${colorPass ? 'pass' : 'fail'}">
+                ${colorPass ? '✓' : '✕'}
+              </div>
+              <div class="check-content">
+                <div class="check-label">Colors exist in design system</div>
+                <div class="check-details stats">
+                  ${result.totalColors} colors used
+                </div>
+                ${!colorPass ? `
+                  <div class="issue-list">
+                    ${result.unmatchedColors.slice(0, 5).map(color => 
+                      `<div class="issue-item">• ${color}</div>`
+                    ).join('')}
+                    ${result.unmatchedColors.length > 5 ? 
+                      `<div class="issue-item">• ...and ${result.unmatchedColors.length - 5} more</div>` : ''}
+                  </div>
+                ` : ''}
+              </div>
+            </div>
+            
+            <div class="check-item">
+              <div class="check-icon ${boundPass ? 'pass' : 'fail'}">
+                ${boundPass ? '✓' : '✕'}
+              </div>
+              <div class="check-content">
+                <div class="check-label">Colors bound to tokens (not hardcoded)</div>
+                <div class="check-details stats">
+                  Checking for proper variable/style binding
+                </div>
+                ${!boundPass ? `
+                  <div class="issue-list">
+                    ${result.unboundColors.slice(0, 5).map(item => 
+                      `<div class="issue-item">• ${escapeHtml(item)}</div>`
+                    ).join('')}
+                    ${result.unboundColors.length > 5 ? 
+                      `<div class="issue-item">• ...and ${result.unboundColors.length - 5} more</div>` : ''}
+                  </div>
+                ` : ''}
+              </div>
+            </div>
+            
+            <div class="check-item">
+              <div class="check-icon ${namePass ? 'pass' : 'fail'}">
+                ${namePass ? '✓' : '✕'}
+              </div>
+              <div class="check-content">
+                <div class="check-label">Layer names valid (kebab-case)</div>
+                <div class="check-details stats">
+                  ${result.totalLayers} layers checked
+                </div>
+                ${!namePass ? `
+                  <div class="issue-list">
+                    ${result.invalidNames.slice(0, 5).map(name => 
+                      `<div class="issue-item">• ${escapeHtml(name)}</div>`
+                    ).join('')}
+                    ${result.invalidNames.length > 5 ? 
+                      `<div class="issue-item">• ...and ${result.invalidNames.length - 5} more</div>` : ''}
+                  </div>
+                ` : ''}
+              </div>
+            </div>
+          </div>
+        `;
+      });
+      
+      resultsDiv.innerHTML = html;
+    }
+    
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+  </script>
+</body>
+</html>
